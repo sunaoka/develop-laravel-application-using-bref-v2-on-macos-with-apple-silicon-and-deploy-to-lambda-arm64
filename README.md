@@ -30,13 +30,15 @@ services:
 ```
 
 > **Warning**
+>
 > You must always specify `nobody` user in docker-compose.yaml.
 >
 > Otherwise, the following error will occur:
 >
 > `file_put_contents(/tmp/storage/framework/views/a0720c85aa2eaf0d3af39f30002c583b.php): Failed to open stream: Permission denied`
 >
-> The reason is that `nobody` is specified as the FPM user in [php-fpm.conf](https://github.com/brefphp/aws-lambda-layers/blob/main/layers/fpm/php-fpm.conf).
+> The reason is that `nobody` is specified as the FPM user
+> in [php-fpm.conf](https://github.com/brefphp/aws-lambda-layers/blob/main/layers/fpm/php-fpm.conf#L27).
 
 #### Add Xdebug
 
@@ -56,7 +58,8 @@ xdebug.client_host = 'host.docker.internal'
 docker compose up
 ```
 
-Once you have started docker container, your application will be accessible in your web browser at `http://localhost:8000`.
+Once you have started docker container, your application will be accessible in your web browser
+at `http://localhost:8000`.
 
 ## Deployment
 
@@ -85,6 +88,7 @@ php artisan config:clear
 ```
 
 > **Note**
+>
 > At booting in AWS Lambda, Bref Laravel Bridge automatically creates a cache file of the configuration.
 
 Remove development dependencies and optimize Composer's autoloader for production:
