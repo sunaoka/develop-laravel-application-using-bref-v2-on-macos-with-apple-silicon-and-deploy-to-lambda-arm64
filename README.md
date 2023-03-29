@@ -1,66 +1,100 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Develop Laravel application (using bref v2) on macOS with Apple silicon and deploy to Lambda (arm64).
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## Local development with docker
 
-## About Laravel
+### Create a new Laravel project
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+```bash
+composer create-project laravel/laravel develop-laravel-application-using-bref-v2-on-macos-with-apple-silicon-and-deploy-to-lambda-arm64
+```
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### Add Bref and Bref Laravel Bridge
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+```bash
+composer require bref/bref bref/laravel-bridge --update-with-dependencies
+```
 
-## Learning Laravel
+### Create a docker-compose.yaml
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+```yaml
+services:
+  app:
+    image: bref/arm-php-82-fpm-dev:2
+    user: nobody  # Unix user of FPM processes.
+    ports:
+      - '8000:8000'
+    volumes:
+      - .:/var/task:ro
+    environment:
+      HANDLER: public/index.php
+```
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+> **Warning**
+> You must always specify `nobody` user in docker-compose.yaml.
+>
+> Otherwise, the following error will occur:
+>
+> `file_put_contents(/tmp/storage/framework/views/a0720c85aa2eaf0d3af39f30002c583b.php): Failed to open stream: Permission denied`
+>
+> The reason is that `nobody` is specified as the FPM user in [php-fpm.conf](https://github.com/brefphp/aws-lambda-layers/blob/main/layers/fpm/php-fpm.conf).
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 2000 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+#### Add Xdebug
 
-## Laravel Sponsors
+Edit the `php/conf.dev.d/php.ini` file:
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
+```ini
+[xdebug]
+zend_extension = xdebug.so
+xdebug.mode = debug
+xdebug.start_with_request = yes
+xdebug.client_host = 'host.docker.internal'
+```
 
-### Premium Partners
+### Create and start docker container
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Cubet Techno Labs](https://cubettech.com)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[Many](https://www.many.co.uk)**
-- **[Webdock, Fast VPS Hosting](https://www.webdock.io/en)**
-- **[DevSquad](https://devsquad.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[OP.GG](https://op.gg)**
-- **[WebReinvent](https://webreinvent.com/?utm_source=laravel&utm_medium=github&utm_campaign=patreon-sponsors)**
-- **[Lendio](https://lendio.com)**
+```bash
+docker compose up
+```
 
-## Contributing
+Once you have started docker container, your application will be accessible in your web browser at `http://localhost:8000`.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Deployment
 
-## Code of Conduct
+### Create a serverless.yml
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+php artisan vendor:publish --tag=serverless-config
+```
 
-## Security Vulnerabilities
+#### Use arm64 architecture
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```yaml
+# serverless.yml
+provider:
+  ...
+  # Use arm64 architecture (AWS Graviton2 processor)
+  architecture: arm64
+```
 
-## License
+### Deploying
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Remove the configuration cache file:
+
+```bash
+php artisan config:clear
+```
+
+> **Note**
+> At booting in AWS Lambda, Bref Laravel Bridge automatically creates a cache file of the configuration.
+
+Remove development dependencies and optimize Composer's autoloader for production:
+
+```bash
+composer install --prefer-dist --optimize-autoloader --no-dev
+```
+
+Let's deploy now:
+
+```bash
+serverless deploy --verbose
+```
