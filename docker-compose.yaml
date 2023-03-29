@@ -1,6 +1,7 @@
 services:
   app:
     image: bref/arm-php-82-fpm-dev:2
+    user: nobody  # Unix user of FPM processes.
     ports:
       - '8000:8000'
     volumes:
