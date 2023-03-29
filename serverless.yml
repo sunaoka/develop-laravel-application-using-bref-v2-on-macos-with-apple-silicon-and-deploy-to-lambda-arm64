@@ -4,6 +4,8 @@ provider:
     name: aws
     # The AWS region in which to deploy (us-east-1 is the default)
     region: us-east-1
+    # Use arm64 architecture (AWS Graviton2 processor)
+    architecture: arm64
     # Environment variables
     environment:
         APP_ENV: production # Or use ${sls:stage} if you want the environment to match the stage
