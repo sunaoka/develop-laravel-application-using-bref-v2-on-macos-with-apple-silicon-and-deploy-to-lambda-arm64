@@ -1,0 +1,9 @@
+services:
+  app:
+    image: bref/arm-php-82-fpm-dev:2
+    ports:
+      - '8000:8000'
+    volumes:
+      - .:/var/task:ro
+    environment:
+      HANDLER: public/index.php
